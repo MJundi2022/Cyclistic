@@ -1,0 +1,658 @@
+---
+title: "Cyclistic"
+author: "Mohd J."
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+always_allow_html: true
+markdown: 
+wrap: 72
+---
+
+```{=html}
+<style>
+highlight: monochrome
+    font-family: verdana
+    body { background-color: grey; }
+    pre, pre:not([class]) { background-color: #FDF5DF; }
+</style>
+```
+<center>![](case.jpg)</center>
+
+#### Cyclistic_Exercise_Full_Year_Analysis
+
+####### This analysis is for case study 1 from the Google Data Analytics Certificate (Cyclistic). It's originally based on the case study "'Sophisticated, Clear, and Polished': Divvy and Data Visualization" written by Kevin Hartman (found here: <https://artscience.blog/home/divvy-dataviz-case-study>).
+
+####### We will be using the Divvy data set for the case study. The purpose of this script is to consolidate downloaded Divvy data into a single data frame and then conduct simple analysis to help answer the key question: <br> ***"In what ways do members and casual riders use Divvy bikes differently?"*** <br>
+
+using the following script <https://docs.google.com/document/d/1gUs7-pu4iCHH3PTtkC1pMvHfmyQGu0hQBG5wvZOzZkA/copy>
+
+Cyclistic case study <br> Install required packages <br>tidyverse for data import and wrangling <br> libridate for date functions <br> ggplot for visualization <br> Markdown for creating HTML report
+
+#### `install packages`<br>
+
+`install.packages("dplyr")`<br>
+
+`install.packages("lubridate")`<br>
+
+`install.packages("ggplot2")`<br>
+
+`install.packages("markdown")`<br>
+
+`install.packages("data.table")`<br>
+
+`install.packages("kableExtra")`<br>
+
+`install.packages("knitr")`<br>
+
+`install.packages("tidyverse")`
+
+#### load Libraries
+
+```{r load libraries, warning=FALSE}
+
+library(tidyverse)
+library(lubridate)  
+library(ggplot2)  
+library(markdown)
+library(data.table)
+library(kableExtra)
+library(knitr)
+library(dplyr)
+
+```
+
+#### Displays working directory and set new directory
+
+```{r working directory, warning=FALSE}
+getwd()
+```
+
+```{r change directory}
+setwd("/Users/tsheef/Desktop/case study Cyclistic")
+```
+
+#### STEP 1: COLLECT DATA <br>
+
+##### Upload Divvy data sets (csv files)
+
+###### <https://divvy-tripdata.s3.amazonaws.com/index.html> <br>
+
+###### <https://www.divvybikes.com/data-license-agreement> <br>
+
+```{r Upload Divvy datasets}
+q2_2019 <- read_csv("Divvy_Trips_2019_Q2.csv")
+q3_2019 <- read_csv("Divvy_Trips_2019_Q3.csv")
+q4_2019 <- read_csv("Divvy_Trips_2019_Q4.csv")
+q1_2020 <- read_csv("Divvy_Trips_2020_Q1.csv")
+```
+
+#### STEP 2: WRANGLE DATA AND COMBINE INTO A SINGLE FILE <br>Compare column names each of the files <br>
+
+##### While the names don't have to be in the same order <br>
+
+##### They DO need to match perfectly before we can use a <br>
+
+##### Command to join them into one file <br>
+
+```{r  WRANGLE DATA AND COMBINE INTO A SINGLE FILE}
+colnames(q3_2019)
+colnames(q4_2019)
+colnames(q2_2019)
+colnames(q1_2020)
+```
+
+#### Rename columns to make them consistent with q1_2020 (as this will be the supposed going-forward table design for Divvy)
+
+```{r  Rename columns}
+
+(q4_2019 <- rename(q4_2019
+                   ,ride_id = trip_id
+                   ,rideable_type = bikeid 
+                   ,started_at = start_time  
+                   ,ended_at = end_time  
+                   ,start_station_name = from_station_name 
+                   ,start_station_id = from_station_id 
+                   ,end_station_name = to_station_name 
+                   ,end_station_id = to_station_id 
+                   ,member_casual = usertype))
+(q3_2019 <- rename(q3_2019
+                   ,ride_id = trip_id
+                   ,rideable_type = bikeid 
+                   ,started_at = start_time  
+                   ,ended_at = end_time  
+                   ,start_station_name = from_station_name 
+                   ,start_station_id = from_station_id 
+                   ,end_station_name = to_station_name 
+                   ,end_station_id = to_station_id 
+                   ,member_casual = usertype))
+
+(q2_2019 <- rename(q2_2019
+                   ,ride_id = "01 - Rental Details Rental ID"
+                   ,rideable_type = "01 - Rental Details Bike ID" 
+                   ,started_at = "01 - Rental Details Local Start Time"  
+                   ,ended_at = "01 - Rental Details Local End Time"  
+                   ,start_station_name = "03 - Rental Start Station Name" 
+                   ,start_station_id = "03 - Rental Start Station ID"
+                   ,end_station_name = "02 - Rental End Station Name" 
+                   ,end_station_id = "02 - Rental End Station ID"
+                   ,member_casual = "User Type"))
+```
+
+#### Inspect the data frames and look for inconsistencies
+
+```{r  look for inconguencies}
+str(q1_2020)
+str(q4_2019)
+str(q3_2019)
+str(q2_2019)
+```
+
+#### Convert ride_id and rideable_type to character so that they can stack correctly
+
+```{r  Convert to character}
+q4_2019 <-  mutate(q4_2019, ride_id = as.character(ride_id)
+                   ,rideable_type = as.character(rideable_type)) 
+q3_2019 <-  mutate(q3_2019, ride_id = as.character(ride_id)
+                   ,rideable_type = as.character(rideable_type)) 
+q2_2019 <-  mutate(q2_2019, ride_id = as.character(ride_id)
+                   ,rideable_type = as.character(rideable_type)) 
+```
+
+#### Stack individual quarter's data frames into one big data frame
+
+```{r  Stack into one data frame}
+all_trips <- bind_rows(q2_2019,q3_2019,q4_2019,q1_2020)
+```
+
+#### Remove lat, long, birth year, and gender fields as this data was dropped beginning in 2020
+
+```{r  Remove un-wanted columns}
+all_trips <- all_trips %>%  
+  select(-c(birthyear, gender, "01 - Rental Details Duration In Seconds Uncapped", "05 - Member Details Member Birthday Year", "Member Gender", "tripduration"))
+
+```
+
+#### STEP 3: CLEAN UP AND ADD DATA TO PREPARE FOR ANALYSIS <br> Inspect the new table that has been created <br>
+
+```{r  clean up data}
+colnames(all_trips)  
+nrow(all_trips)
+dim(all_trips)  
+head(all_trips)  
+str(all_trips)  
+summary(all_trips)  
+```
+
+#### There are a few problems we will need to fix: <br>
+
+##### (1) In the "member_casual" column, there are two names for members ("member" and "Subscriber") and two names for casual riders ("Customer" and "casual"). We will need to consolidate that from four to two labels.<br>
+
+##### (2) The data can only be aggregated at the ride-level, which is too granular. We will want to add some additional columns of data -- such as day, month, year -- that provide additional opportunities to aggregate the data. <br>
+
+##### (3) We will want to add a calculated field for length of ride since the 2020Q1 data did not have the "trip duration" column. We will add "ride_length" to the entire data frame for consistency. <br>
+
+##### (4) There are some rides where trip duration shows up as negative, including several hundred rides where Divvy took bikes out of circulation for Quality Control reasons. We will want to delete these rides. <br>
+
+##### In the "member_casual" column, replace "Subscriber" with "member" and "Customer" with "casual" <br>
+
+##### Before 2020, Divvy used different labels for these two types of riders ... we will want to make our dataframe consistent with their current nomenclature <br>
+
+##### N.B.: "Level" is a special property of a column that is retained even if a subset does not contain any values from a specific level <br>
+
+##### Begin by seeing how many observations fall under each user type <br>
+
+```{r create table member_casual}
+table(all_trips$member_casual)
+
+
+```
+
+#### Reassign to the desired values (we will go with the current 2020 labels)
+
+```{r unify variables of member_casual}
+all_trips <-  all_trips %>% 
+  mutate(member_casual = recode(member_casual
+                                ,"Subscriber" = "member"
+                                ,"Customer" = "casual"))
+```
+
+#### Check to make sure the proper number of observations were reassigned
+
+```{r Table Casual Member count}
+table(all_trips$member_casual)
+
+```
+
+#### Add columns that list the date, month, day, and year of each ride <br>
+
+##### This will allow us to aggregate ride data for each month, day, or year ... before completing these operations we could only aggregate at the ride level <br>
+
+###### 
+
+```{r break down date column}
+all_trips$date <- as.Date(all_trips$started_at) 
+all_trips$month <- format(as.Date(all_trips$date), "%m")
+all_trips$day <- format(as.Date(all_trips$date), "%d")
+all_trips$year <- format(as.Date(all_trips$date), "%Y")
+all_trips$day_of_week <- format(as.Date(all_trips$date), "%A")
+all_trips$time_start <- format(as.POSIXct(all_trips$started_at,format="%H:%M:%S"),"%H:%M")
+all_trips$time_end <- format(as.POSIXct(all_trips$ended_at,format="%H:%M:%S"),"%H:%M")
+```
+
+#### Add a "ride_length" calculation to all_trips (in seconds)
+
+```{r create ride_length}
+all_trips$ride_length <- difftime(all_trips$ended_at,all_trips$started_at)
+```
+
+#### Inspect the structure of the columns
+
+```{r inspect ride_length}
+str(all_trips)
+```
+
+#### Convert "ride_length" from Factor to numeric so we can run calculations on the data
+
+```{r convert ride_length to numeric}
+is.factor(all_trips$ride_length)
+all_trips$ride_length <- as.numeric(as.character(all_trips$ride_length))
+is.numeric(all_trips$ride_length)
+```
+
+#### Remove "bad" data <br>
+
+##### The data frame includes a few hundred entries when bikes were taken out of docks and checked for quality by Divvy or ride_length was negative <br>
+
+#### We will create a new version of the data frame (v2) since data is being removed <br>
+
+```{r remove error data}
+all_trips_v2 <- all_trips[!(all_trips$start_station_name == "HQ QR" | all_trips$ride_length<0),]
+```
+
+```{r check data structure}
+str(all_trips_v2)
+```
+
+#### STEP 4: CONDUCT DESCRIPTIVE ANALYSIS <br>
+
+##### Descriptive analysis on ride_length (all figures in seconds) <br> Mean(all_trips_v2 ride_length) straight average (total ride length / rides) <br> Median(all_trips_v2 ride_length) midpoint number in the ascending array of ride lengths <br>Max(all_trips_v2 ride_length) longest ride <br>Min(all_trips_v2 ride_length) shortest ride <br> You can condense the four lines above to one line using summary() on the specific attribute <br>
+
+```{r check summary}
+summary(all_trips_v2$ride_length)
+```
+
+#### Compare members and casual users
+
+```{r compare members to casual}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = mean)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = median)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = max)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = min)
+```
+
+#### See the average ride time by each day for members vs casual users
+
+```{r average ride time by type}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+```
+
+#### Notice that the days of the week are out of order. Let's fix that.
+
+```{r put day in sequence}
+all_trips_v2$day_of_week <- ordered(all_trips_v2$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
+
+#### Now, let's run the average ride time by each day for members vs casual users
+
+```{r average ride per day}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+```
+
+##### analyze ridership data by type and weekday
+
+##### creates weekday field using wday()
+
+##### groups by usertype and weekday
+
+##### calculates the number of rides and average duration
+
+##### calculates the average duration
+
+##### sorts
+
+```{r check rides and duration per week day}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at)) %>%  
+  group_by(member_casual, weekday) %>%  
+  summarise(number_of_rides = n(),average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  
+```
+
+#### Let's visualize the ratio of Members To Casuals {#lets-visualize-the-number-of-rides-by-rider-type}
+
+```{r visualize the ratio of Members To Casuals}
+membership <- count(all_trips_v2,member_casual , name = "count")
+
+ggplot(membership, aes(x = member_casual, y = count)) +
+  geom_col(fill="lightblue",width = 0.5)+
+  geom_text(aes(label=count), vjust = 2, fontface = "bold") +
+  scale_y_continuous(labels =function(y) format(y,big.mark =",",scientific = FALSE))
+
+```
+
+#### Let's visualize the number of rides by rider type
+
+```{r  visualize the number of rides by rider type}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = position_dodge(width = 0.5))+
+  scale_y_continuous(labels =function(y) format(y,big.mark =",",scientific = FALSE))
+```
+
+#### Let's create a visualization for average duration {#lets-create-a-visualization-for-average-duration}
+
+```{r  visualization for average duration}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = position_dodge(width = 0.5))
+```
+
+#### Let's create a visualization for the top 5 departure Stations for members {#lets-create-a-visualization-for-the-top-5-departure-stations-for-members}
+
+```{r top departure Stations for memebrs}
+departure_station_members <- all_trips_v2 %>% 
+     filter(member_casual == "member" ) %>%
+     group_by(start_station_name,.drop = FALSE, ) %>% 
+     count(sort = TRUE , name = "count") %>%
+    head(5)
+     
+ggplot(departure_station_members, aes(x = count, y = start_station_name)) +
+  geom_col(fill="blue",width = 0.5)
+  
+```
+
+#### Let's create a visualization for the top 5 departure Stations for casuals {#lets-create-a-visualization-for-the-top-5-departure-stations-for-casuals}
+
+```{r looking for top departure Stations for casual}
+departure_station_casual <- all_trips_v2 %>% 
+  filter(member_casual == "casual" ) %>%
+  group_by(start_station_name,.drop = FALSE, ) %>% 
+  count(sort = TRUE, name = "count") %>%
+  head(5) 
+  
+ggplot(departure_station_casual, aes(x = count, y = start_station_name)) +
+  geom_col(fill="red",width = 0.5)
+```
+
+#### Let's create a visualization for the top 5 Arrival Stations for members {#lets-create-a-visualization-for-the-top-5-arrival-stations-for-members}
+
+```{r looking for top Arrival Stations formembers}
+arrival_station_members <- all_trips_v2 %>% 
+  filter(member_casual == "member" ) %>%
+  group_by(end_station_name,.drop = FALSE, ) %>% 
+  count(sort = TRUE, name = "count") %>%
+  head(5)
+
+ggplot(arrival_station_members, aes(x = count, y = end_station_name)) +
+  geom_col(fill="blue",width = 0.5)
+```
+
+#### Let's create a visualization for the top 5 Arrival Stations for casuals {#lets-create-a-visualization-for-the-top-5-arrival-stations-for-casuals}
+
+```{r looking for top Arrival Stations for casual}
+arrival_station_casual <- all_trips_v2 %>% 
+  filter(member_casual == "casual" ) %>%
+  group_by(end_station_name,.drop = FALSE, ) %>% 
+  count(sort = TRUE, name = "count") %>%
+  head(5)
+ggplot(arrival_station_casual, aes(x = count, y = end_station_name)) +
+  geom_col(fill="red",width = 0.5)
+ 
+```
+
+#### Let's create a visualization for the Starting time for Casuals And members by each day of the week {#lets-create-a-visualization-for-the-starting-time-for-casuals-and-mambers-by-each-day-of-the-week}
+
+```{r Starting time distribution between Casual And mambers}
+
+  ggplot(data = all_trips) +
+    geom_bar(mapping = aes(x = time_start, fill = member_casual)) +
+    facet_grid(~factor(day_of_week, levels=c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')))
+```
+
+#### Let's create a visualization for the ending time for Casual And members by day of the week {#lets-create-a-visualization-for-the-ending-time-for-casual-and-members-by-day-of-the-week}
+
+```{r ending time distribution between Casual And mambers}
+  ggplot(data = all_trips) +
+    geom_bar(mapping = aes(x = time_end, fill = member_casual)) +
+    facet_grid(~factor(day_of_week, levels=c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')))
+```
+
+#### lets create a table of all starting stations with coordination to check later on Google Maps
+
+```{r build unique start station location table}
+start_stations_location <- q1_2020 %>%     
+add_count(start_station_name, sort = TRUE) %>%    
+  distinct(start_station_name, .keep_all = TRUE) %>%         
+  select(c(start_station_name, n, start_lat,start_lng))       
+
+kable(head(start_stations_location,10),format = "html", align = "lcll") %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+#### lets create a table of all ending stations with coordination to check later on Google Maps
+
+```{r build unique end station location table}
+end_stations_location <- q1_2020 %>%      
+  add_count(end_station_name, sort = TRUE) %>%        
+  distinct(end_station_name, .keep_all = TRUE) %>%     
+  select(c(end_station_name, n, end_lat,end_lng))       
+
+ 
+   kable(head(end_stations_location,10),format = "html", align = "lcll") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+
+#### lets visualize the top 5 departure stations for members on Google Maps (red markers) {#lets-visualize-the-top-5-departure-stations-for-members-on-google-maps-red-markers}
+
+```{r get location of the top 5 departure stations for members}
+
+Top5_departure_station_members <-left_join(departure_station_members,start_stations_location,by = "start_station_name") %>%   
+select(c(start_station_name, count, start_lat,start_lng))  
+
+kable(Top5_departure_station_members, format = "html", align = "lcll") %>%   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))    
+```
+
+#### Click on the image to view in Google Maps
+
+[![Click on the image to view in Goggle maps](Top5_departure_station_members.jpg){alt="Click to see on Google Maps"}](https://maps.app.goo.gl/6BPY41rQeAADgotC9)
+
+#### lets visualize the top 5 departure stations for casuals on Google Maps (red markers) {#lets-visualize-the-top-5-departure-stations-for-casuals-on-google-maps-red-markers}
+
+```{r get location of the top 5 departure stations for casuals}
+
+Top5_departure_station_casual <-left_join(departure_station_casual,start_stations_location,by = "start_station_name") %>%   
+select(c(start_station_name, count, start_lat,start_lng))  
+
+kable(Top5_departure_station_casual, format = "html", align = "lcll") %>%   
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+#### Click on the image to view in Google Maps
+
+[![Click on the image to view in Goggle maps](Top5_departure_station_casual.jpg){alt="click to see on google maps"}](https://maps.app.goo.gl/t9oTgtmYgV7CfjzS9)
+
+#### lets visualize the top 5 arrival stations for members on Google Maps (red markers) {#lets-visualize-the-top-5-arrival-stations-for-members-on-google-maps-red-markers}
+
+```{r get location of the top 5 arrival stations for members}
+
+Top5_arrival_station_members <-left_join(arrival_station_members, end_stations_location,by = "end_station_name") %>% 
+  select(c(end_station_name, count, end_lat,end_lng))  
+
+kable(Top5_arrival_station_members, format = "html", align = "lcll") %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+#### Click on the image to view in Google Maps
+
+[![Click on the image to view in Goggle maps](top%205%20arrival%20stations%20for%20members.jpg){alt="click to see on google maps"}](https://maps.app.goo.gl/3Na7caaXTfRsaEm97)
+
+#### lets visualize the top 5 arrival stations for casuals on Google Maps (red markers) {#lets-visualize-the-top-5-arrival-stations-for-casuals-on-google-maps-red-markers}
+
+```{r get location of the top 5 arrival stations for casual}
+
+Top5_arrival_station_casual <-left_join(arrival_station_casual, end_stations_location,by = "end_station_name") %>% 
+  select(c(end_station_name, count, end_lat,end_lng))  
+
+kable(Top5_arrival_station_casual, format = "html", align = "lcll") %>%   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+#### Click on the image to view in Google Maps
+
+[![Click on the image to view in Goggle maps](top%205%20arrival%20stations%20for%20casual.jpg){alt="click to see on google maps"}](https://maps.app.goo.gl/bzjffG5DdzBi8RmRA)
+
+### Our observations and analysts
+
+After Cleaning, organizing the data and analyzing each graph we had the following observations:
+
+**First** number of casual customers is 905954 while number of members is 2973868
+
+###### [Let's visualize the ratio of Members To Casuals](#lets-visualize-the-number-of-rides-by-rider-type)
+
+**Second** number of rides are far more on the members side than casuals.
+
+###### [Let's visualize the number of rides by rider type](#lets-visualize-the-number-of-rides-by-rider-type)
+
+**Third** casuals duration time is far more than members duration time
+
+###### [Let's create a visualization for average duration](#lets-create-a-visualization-for-average-duration)
+
+**Forth** visualizing the number of rides, it is clear that members take more rides than casuals, every day of the week.
+
+###### [Let's visualize the number of rides by rider type](#lets-visualize-the-number-of-rides-by-rider-type)
+
+**Fifth** visualizing the average duration we see that Casuals Spend much more time per trip than members
+
+###### [Let's create a visualization for average duration](#lets-create-a-visualization-for-average-duration)
+
+**Sixth** visualizing the Starting time for Casuals compared to members by each day of the week, we can see that members tend to peak at normal working hours, mostly. while casuals start off peak times mostly in the afternoons and late at night. while on week ends casuals out number members most of the day.
+
+###### [Let's create a visualization for the Starting time for Casuals And mambers by each day of the week](#lets-create-a-visualization-for-the-starting-time-for-casuals-and-mambers-by-each-day-of-the-week)
+
+**Seventh** visualizing the end time for members compared to Casuals by each day of the week, we can see that members tend to peak at normal working hours, mostly. while casuals start off-peak times mostly again in the afternoons and late at night. while on week ends casuals out number members most of the day.
+
+###### [Let's create a visualization for the ending time for Casual And members by day of the week](#lets-create-a-visualization-for-the-ending-time-for-casual-and-members-by-day-of-the-week)
+
+**Eighth** visualizing the top 5 departure Stations for members we check their locations on Google maps where it shows random type of departure points
+
+###### [Let's create a visualization for the top 5 departure Stations for members](#lets-create-a-visualization-for-the-top-5-departure-stations-for-members)
+
+###### [lets visualize the top 5 departure stations for members on Google Maps (red markers)](#lets-visualize-the-top-5-departure-stations-for-members-on-google-maps-red-markers)
+
+**Ninth** visualizing the top 5 departure Stations for casuals. we check their locations on Google maps
+
+where it shows random type of departure points.
+
+###### [Let's create a visualization for the top 5 departure Stations for casuals](#lets-create-a-visualization-for-the-top-5-departure-stations-for-casuals)
+
+###### [lets visualize the top 5 departure stations for casuals on Google Maps (red markers)](#lets-visualize-the-top-5-departure-stations-for-casuals-on-google-maps-red-markers)
+
+**Tenth** visualizing the top 5 arrival Stations for members. we check their locations on Google maps
+
+where it shows business type of arrival points
+
+###### [Let's create a visualization for the top 5 Arrival Stations for members](#lets-create-a-visualization-for-the-top-5-arrival-stations-for-members)
+
+###### [lets visualize the top 5 arrival stations for members on Google Maps (red markers)](#lets-visualize-the-top-5-arrival-stations-for-members-on-google-maps-red-markers)
+
+**Eleventh** visualizing the top 5 arrival Stations for casuals. we check their locations on Google maps
+
+where it shows entertainment type of arrival points.
+
+###### [Let's create a visualization for the top 5 Arrival Stations for casuals](#lets-create-a-visualization-for-the-top-5-arrival-stations-for-casuals)
+
+###### [lets visualize the top 5 arrival stations for casuals on Google Maps (red markers)](#lets-visualize-the-top-5-arrival-stations-for-casuals-on-google-maps-red-markers)
+
+#### Based on all the previous analyses and the Eleven observations, to answer our key Question: \<br\>
+
+#### ***"In what ways do members and casual riders use Divvy bikes differently?"***
+
+##### we can summarize that:
+
+##### most members, while they use their bikes much more frequently, they tend to use it for less duration time they use their bikes departing at peak working hours and arriving back at peak working hours departing from random locations probably their homes to business location then back. indicating that they mostly commute between work and home.
+
+##### while casuals though they use their bikes much less number of times but for much longer duration, they tend to use their bikes mostly off peak times and late after-work from random location to entertainment locations as we can induce from Google maps therefore casuals are mostly using bicycles for entertainment.
+
++:---------------------------------+:----------------------------------------------------------------:+:-----------------------------------------------------------------------:+
+| ####                             | #### Members                                                     | **Casuals**                                                             |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| #### Count                       | 2973868                                                          | 905954                                                                  |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| #### Count %                     | 77%                                                              | 23%                                                                     |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| #### Frequency of use            | much higher                                                      |                                                                         |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| #### Duration of use             |                                                                  | much higher                                                             |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| ####                             | mostly peak                                                      | mostly off peak                                                         |
+|                                  |                                                                  |                                                                         |
+| #### weekdays Departure Time     |                                                                  |                                                                         |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| #### weekdays Departure location | random                                                           | random                                                                  |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| ####                             | mostly peak                                                      | mostly of peak                                                          |
+|                                  |                                                                  |                                                                         |
+| #### weekdays arrival Time       |                                                                  |                                                                         |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| ####                             | mostly Business                                                  | mostly entertainment                                                    |
+|                                  |                                                                  |                                                                         |
+| #### weekdays arrival location   |                                                                  |                                                                         |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| ####                             |                                                                  |                                                                         |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| ####                             | mostly early                                                     | mostly early                                                            |
+|                                  |                                                                  |                                                                         |
+| #### weekend departure time      |                                                                  |                                                                         |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| #### weekend departure location  | random                                                           | random                                                                  |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| #### weekend arrival time        | mostly late                                                      | mostly late                                                             |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| ####                             | entertainment                                                    | entertainment                                                           |
+|                                  |                                                                  |                                                                         |
+| #### weekend arrival location    |                                                                  |                                                                         |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+| ####                             | ##### indicating that they mostly commute bet ween work and home | ##### indicating that they are mostly using bicycles for entertainment. |
++----------------------------------+------------------------------------------------------------------+-------------------------------------------------------------------------+
+
+##### 
+
+Finally based on the above how can we convert casuals to members ?
+
+firstly, we need to convince casuals that they can use these bikes not only for leisure but also for going to work by passing a massage like
+
+##### ""why don't you extend your leisure time?""
+
+OR
+
+##### ""Workout to work by a Healthy, Green, Inexpensive commute .""
+
+##### these massages can be sent directly to our customers, excluding members by contact information, such as emails and/or SMS. also could be placed on Google adds based on the top 5 locations and also on billboards at those same locations.
+
+##### we could also give a special discount for a limited period of time.
+
+##### In addition since these customers are heading for entertainments we could also arrange for packages with the most desired locations. like a discount or a free drink or a day pass or a free child pass etc.
+
+##### However based on my experience in sales and marketing i think those two categories members and casuals are so much different that i would recommend for better CPC "cost per customer rates" to spend our advertising budget on getting more customers in general rather than trying to convert our casuals.
+
+##### Also since we have no pricing structure to compare, we do not know if converting casuals to members wont in fact reduce our profitability buy reducing income while adding more time consumption on our vehicles since casuals if converted would use bikes more frequently as indicated by our analyses while they already use it for much more extended times.
